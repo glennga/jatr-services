@@ -1,0 +1,25 @@
+html {
+    width: 100%;
+}
+body {
+    min-width: 600px;
+    max-width: 900px;
+    width: 75%;
+    margin: auto;
+}
+.content {
+    margin: 2em;
+}
+h1 {
+    margin: 2em 0 0 0;
+    color: #2e484c;
+    font-family: 'Julius Sans One', sans-serif;
+    font-size: 1.8em;
+    text-align: center;
+    text-transform: uppercase;
+}
+p {
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    font-size: 1.2em;
+    text-align: center;
+}

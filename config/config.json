@@ -1,0 +1,24 @@
+{
+  "discordSearch": {
+    "emojiWhitelist": [
+      "🔍"
+    ]
+  },
+  "yelpSearch": {
+    "location": "tokyo",
+    "limit": 50
+  },
+  "bokehLayout": {
+    "title": "Japan Trip 2023",
+    "mapType": "satellite",
+    "initialDataRange": [0, 100],
+    "initialGroupRank": 3
+  },
+  "serviceDescription": {
+    "indexerPort": 16000,
+    "websiteURL": "127.0.0.1"
+  },
+  "databaseDescription": {
+    "location": "out/japan-trip.db"
+  }
+}

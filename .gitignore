@@ -1,0 +1,9 @@
+# Some directories.
+out/
+scratch/
+venv/
+src/__pycache__/
+.idea/
+
+# Some files.
+.env
