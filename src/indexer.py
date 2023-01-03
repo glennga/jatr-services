@@ -17,6 +17,16 @@ OP_CODE_INDEX = 'INDEX'
 OP_CODE_DELETE = 'DELETE'
 
 class IndexerService(http.server.BaseHTTPRequestHandler):
+    @staticmethod
+    def respond_to_client(handler, status_code, content):
+        handler.send_response(status_code)
+        handler.send_header('Content-type', 'text/plain')
+        handler.send_header('Content-Length', len(content))
+        handler.send_header('Connection', 'close')
+        handler.end_headers()
+        handler.wfile.write(content.encode('UTF-8'))
+        handler.wfile.flush()
+
     def do_INDEX(self):
         content_length = int(self.headers['Content-Length'])
         request_data = self.rfile.read(content_length)
@@ -63,11 +73,7 @@ class IndexerService(http.server.BaseHTTPRequestHandler):
                 if not yelp_response.ok:
                     logger.error('Yelp has returned a non-200 response code!')
                     logger.error(yelp_response.content)
-                    self.send_response(500)
-                    self.send_header('Content-type', 'text/plain')
-                    self.end_headers()
-                    self.wfile.write('INDEX request could not be processed.'.encode('UTF-8'))
-                    return
+                    return IndexerService.respond_to_client(self, 500, 'INDEX request could not be processed.')
 
                 # Do a bit of cleaning...
                 raw_businesses, clean_businesses = yelp_response.json()['businesses'], list()
@@ -142,27 +148,16 @@ class IndexerService(http.server.BaseHTTPRequestHandler):
             except sqlite3.Error as e:
                 logger.error('Could not process INSERT! Database error encountered: ')
                 logger.error(e)
-                self.send_response(500)
-                self.send_header('Content-type', 'text/plain')
-                self.end_headers()
-                self.wfile.write('INSERT request could not be processed!'.encode('UTF-8'))
-                return
+                return IndexerService.respond_to_client(self, 500, 'INDEX request could not be processed.')
 
         # Respond to our caller.
         if len(empty_search_terms) > 0:
             empty_search_term_string = ','.join(f'"{s}"' for s in empty_search_terms)
-            self.send_response(199)
-            self.send_header('Content-type', 'text/plain')
-            self.end_headers()
-            self.wfile.write(f'Warning! INDEX request processed, but the following terms yielded '
-                             f'no Yelp results:\n{empty_search_term_string}'.encode('UTF-8'))
-            self.wfile.flush()
-
+            return IndexerService.respond_to_client(
+                self, 199, f'Warning! INDEX request processed, but the following terms yielded no '
+                           f'Yelp results:\n{empty_search_term_string}')
         else:
-            self.send_response(200)
-            self.send_header('Content-type', 'text/plain')
-            self.end_headers()
-            self.wfile.write('INDEX request successfully processed.\n'.encode('UTF-8'))
+            return IndexerService.respond_to_client(self, 200, 'INDEX request successfully processed.')
 
     def do_DELETE(self):
         content_length = int(self.headers['Content-Length'])
@@ -177,22 +172,16 @@ class IndexerService(http.server.BaseHTTPRequestHandler):
                 INSERT INTO BlacklistedLocations (id)
                 VALUES                           (?)
                 ON CONFLICT (id) DO NOTHING;
-            """, tuple([(i, ) for i in location_ids]))
+            """, tuple([(i,) for i in location_ids]))
             conn.commit()
 
             # Respond to our caller.
-            self.send_response(200)
-            self.send_header('Content-type', 'text/plain')
-            self.end_headers()
-            self.wfile.write('DELETE request successfully processed.'.encode('UTF-8'))
+            return IndexerService.respond_to_client(self, 200, 'DELETE request successfully processed.')
 
         except sqlite3.Error as e:
             logger.error('Could not process DELETE! Database error encountered: ')
             logger.error(e)
-            self.send_response(500)
-            self.send_header('Content-type', 'text/plain')
-            self.end_headers()
-            self.wfile.write('DELETE request could not be processed!'.encode('UTF-8'))
+            return IndexerService.respond_to_client(self, 500, 'DELETE request could not be processed!')
 
 if __name__ == '__main__':
     dotenv.load_dotenv()

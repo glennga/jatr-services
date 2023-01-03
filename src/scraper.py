@@ -11,6 +11,8 @@ import nltk.corpus
 import emoji
 import os
 import indexer
+import asyncio
+import collections
 
 logging.basicConfig(format='%(asctime)s %(levelname)s %(name)s %(message)s')
 logger = logging.getLogger('DiscordService')
@@ -96,25 +98,32 @@ if __name__ == '__main__':
         # Wrap our inverted map and send this to our indexer.
         indexer_endpoint = f'http://localhost:{config["serviceDescription"]["indexerPort"]}'
         logger.info(f'Pushing inverted map to indexer at endpoint {indexer_endpoint}.')
-        async with aiohttp.ClientSession() as session:
-            async with session.request(indexer.OP_CODE_INDEX, url=indexer_endpoint, json=inverted_map) as response:
-                indexer_status = response.status
-                indexer_response = await response.text()
+
+        # TODO (GLENN): I'm sure there's a cleaner way to do this... but I don't know asyncio :-)
+        async def issue_request():
+            IndexerResponser = collections.namedtuple('IndexerResponse', 'response status')
+            async with aiohttp.ClientSession() as session:
+                async with session.request(indexer.OP_CODE_INDEX, url=indexer_endpoint, json=inverted_map) as r:
+                    indexer_s = r.status
+                    indexer_r = await r.text()
+                    return IndexerResponser(indexer_r, indexer_s)
 
         # Finally, we'll exit by sending our user to the GUI.
+        response_list = await asyncio.gather(issue_request())
+        response = response_list[0]
         website_address = 'https://' + config['serviceDescription']['websiteURL']
-        if indexer_status == 200:
+        if response.status == 200:
             await ctx.reply(f'Messages have been processed by the indexer. Visit {website_address} to see the updates!')
 
-        elif indexer_status == 199:
-            search_terms = indexer_response.split('no Yelp results:\n')[1]
+        elif response.status == 199:
+            search_terms = response.response.split('no Yelp results:\n')[1]
             await ctx.reply(f'Some messages yielded no results! The following search terms gave no results on the '
                             f'Yelp search: {search_terms}\nBesides that... all other messages have been processed by '
                             f'the indexer. Visit {website_address} to see the updates!')
 
         else:
             logger.error('Non-200/199 status from our indexer!')
-            logger.error(indexer_response)
+            logger.error(response.response)
             await ctx.reply('Error encountered! Report this to Glenn!')
 
     class HelpMenuView(discord.ui.View):
